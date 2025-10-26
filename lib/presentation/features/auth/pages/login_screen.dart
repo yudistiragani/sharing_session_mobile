@@ -33,6 +33,20 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void navigateAfterLogin(BuildContext context, String role) {
+  switch (role) {
+    case 'admin':
+      Navigator.pushReplacementNamed(context, AppRouter.adminHome);
+      break;
+    case 'user':
+      Navigator.pushReplacementNamed(context, AppRouter.userHome);
+      break;
+    default:
+      Navigator.pushReplacementNamed(context, AppRouter.userHome);
+  }
+}
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -45,11 +59,12 @@ class _LoginScreenState extends State<LoginScreen> {
               );
             } else if (state.status == AuthStatus.success && state.user != null) {
               final role = state.user!.role;
-              if (role == 'admin') {
-                Navigator.pushReplacementNamed(context, AppRouter.adminHome);
-              } else {
-                Navigator.pushReplacementNamed(context, AppRouter.userHome);
-              }
+              // if (role == 'admin') {
+              //   Navigator.pushReplacementNamed(context, AppRouter.adminHome);
+              // } else {
+              //   Navigator.pushReplacementNamed(context, AppRouter.userHome);
+              // }
+              navigateAfterLogin(context, role);
             }
           },
           child: LayoutBuilder(

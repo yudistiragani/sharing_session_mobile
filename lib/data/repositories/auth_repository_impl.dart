@@ -29,4 +29,28 @@ class AuthRepositoryImpl implements AuthRepository {
       throw UnexpectedFailure(e.toString());
     }
   }
+
+  @override
+  Future<void> logout() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString(AppConstants.kTokenKey);
+      if (token == null || token.isEmpty) {
+        // tetap bersihkan lokal kalau tidak ada token
+        await prefs.remove(AppConstants.kTokenKey);
+        await prefs.remove(AppConstants.kRoleKey);
+        return;
+      }
+
+      await remote.logout(token: token);             // hit API
+      await prefs.remove(AppConstants.kTokenKey);    // bersihkan lokal
+      await prefs.remove(AppConstants.kRoleKey);
+    } on ServerException catch (e) {
+      throw ServerFailure(e.message);
+    } on SocketException {
+      throw NetworkFailure('No internet connection');
+    } catch (e) {
+      throw UnexpectedFailure(e.toString());
+    }
+  }
 }

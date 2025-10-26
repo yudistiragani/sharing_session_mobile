@@ -4,6 +4,7 @@ import '../models/login_response_model.dart';
 
 abstract class AuthRemoteDataSource {
   Future<LoginResponseModel> login({required String username, required String password});
+  Future<void> logout({required String token});
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -17,5 +18,14 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       {'username': username, 'password': password},
     );
     return LoginResponseModel.fromJson(map);
+  }
+
+  @override
+  Future<void> logout({required String token}) async {
+    // Backend minta JSON {token: "..."}
+    await client.postJson(
+      AppConstants.logoutPath,
+      {'token': token},
+    );
   }
 }
