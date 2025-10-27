@@ -16,6 +16,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     final map = await client.postForm(
       AppConstants.loginPath,
       {'username': username, 'password': password},
+      includeAuth: false, // ⬅️ penting
     );
     return LoginResponseModel.fromJson(map);
   }

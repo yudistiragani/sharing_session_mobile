@@ -1,173 +1,203 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-
+import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/app_constants.dart';
 import '../errors/exceptions.dart';
-import '../utils/logger.dart'; // ⬅️ import logger
-
 
 class ApiClient {
-  final http.Client _client;
-  ApiClient(this._client);
+  final http.Client _http;
+  ApiClient(this._http);
 
-  Map<String, String> get _jsonHeaders => {'Content-Type': 'application/json'};
-  Map<String, String> get _formHeaders => {'Content-Type': 'application/x-www-form-urlencoded'};
+  // ================== PUBLIC ==================
 
-  // =====================================================
-  // 🧱 PRIVATE URI BUILDER (hapus / dobel)
-  // =====================================================
+  Future<Map<String, dynamic>> getJson(
+    String path, {
+    Map<String, String>? query,
+    Map<String, String>? headers,
+    bool includeAuth = true,
+  }) async {
+    final uri = _buildUri(path, query: query);
+    final reqHeaders = await _mergedHeaders(headers, includeAuth: includeAuth);
+    _debugPrint('GET', uri, null, reqHeaders);
 
-  Uri _buildUri(String path) {
-    var base = AppConstants.baseUrl;
-    if (base.endsWith('/')) base = base.substring(0, base.length - 1);
-    if (!path.startsWith('/')) path = '/$path';
-    return Uri.parse('$base$path');
+    final resp = await _http.get(uri, headers: reqHeaders);
+    return _toJsonOrThrow(resp);
   }
-
-  // =====================================================
-  // 🔹 POST FORM (application/x-www-form-urlencoded)
-  // =====================================================
-
-  Future<Map<String, dynamic>> postForm(
-      String path, Map<String, String> data) async {
-    final uri = _buildUri(path);
-    appLogger.logRequest(method: 'POST (form)', uri: uri, body: data, headers: _formHeaders);
-    try {
-      final resp = await _client.post(uri, headers: _formHeaders, body: data);
-      appLogger.logResponse(uri: uri, statusCode: resp.statusCode, body: resp.body);
-      return _toJsonOrThrow(resp);
-    } on SocketException {
-      appLogger.logSocketError(uri);
-      throw const SocketException('No Internet connection');
-    } catch (e) {
-      appLogger.logUnexpected(uri, e);
-      rethrow;
-    }
-  }
-
-  // =====================================================
-  // 🔹 POST JSON
-  // =====================================================
 
   Future<Map<String, dynamic>> postJson(
-      String path, Map<String, dynamic> body) async {
+    String path,
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+    bool includeAuth = true,
+  }) async {
     final uri = _buildUri(path);
-    appLogger.logRequest(method: 'POST', uri: uri, body: body, headers: _jsonHeaders);
-    try {
-      final resp = await _client.post(uri, headers: _jsonHeaders, body: jsonEncode(body));
-      appLogger.logResponse(uri: uri, statusCode: resp.statusCode, body: resp.body);
-      return _toJsonOrThrow(resp);
-    } on SocketException {
-      appLogger.logSocketError(uri);
-      throw const SocketException('No Internet connection');
-    } catch (e) {
-      appLogger.logUnexpected(uri, e);
-      rethrow;
-    }
+    final reqHeaders = await _mergedHeaders(headers,
+        includeAuth: includeAuth, json: true);
+    final payload = jsonEncode(body);
+    _debugPrint('POST', uri, payload, reqHeaders);
+
+    final resp = await _http.post(uri, headers: reqHeaders, body: payload);
+    return _toJsonOrThrow(resp);
   }
 
-  // =====================================================
-  // 🔹 GET JSON
-  // =====================================================
-
-  Future<Map<String, dynamic>> getJson(String path) async {
+  /// Kirim form (x-www-form-urlencoded) — dipakai untuk LOGIN
+  Future<Map<String, dynamic>> postForm(
+    String path,
+    Map<String, String> form, {
+    Map<String, String>? headers,
+    bool includeAuth = false, // ⬅️ login TIDAK pakai token
+  }) async {
     final uri = _buildUri(path);
-    appLogger.logRequest(method: 'GET', uri: uri, headers: _jsonHeaders);
-    try {
-      final resp = await _client.get(uri, headers: _jsonHeaders);
-      appLogger.logResponse(uri: uri, statusCode: resp.statusCode, body: resp.body);
-      return _toJsonOrThrow(resp);
-    } on SocketException {
-      appLogger.logSocketError(uri);
-      throw const SocketException('No Internet connection');
-    } catch (e) {
-      appLogger.logUnexpected(uri, e);
-      rethrow;
-    }
-  }
+    final reqHeaders = await _mergedHeaders(headers,
+        includeAuth: includeAuth, form: true);
+    _debugPrint('POST', uri, form, reqHeaders);
 
-  // =====================================================
-  // 🔹 PUT JSON
-  // =====================================================
+    final resp = await _http.post(uri, headers: reqHeaders, body: form);
+    return _toJsonOrThrow(resp);
+  }
 
   Future<Map<String, dynamic>> putJson(
-      String path, Map<String, dynamic> body) async {
+    String path,
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+    bool includeAuth = true,
+  }) async {
     final uri = _buildUri(path);
-    appLogger.logRequest(method: 'PUT', uri: uri, body: body, headers: _jsonHeaders);
-    try {
-      final resp = await _client.put(uri, headers: _jsonHeaders, body: jsonEncode(body));
-      appLogger.logResponse(uri: uri, statusCode: resp.statusCode, body: resp.body);
-      return _toJsonOrThrow(resp);
-    } on SocketException {
-      appLogger.logSocketError(uri);
-      throw const SocketException('No Internet connection');
-    } catch (e) {
-      appLogger.logUnexpected(uri, e);
-      rethrow;
-    }
+    final reqHeaders = await _mergedHeaders(headers,
+        includeAuth: includeAuth, json: true);
+    final payload = jsonEncode(body);
+    _debugPrint('PUT', uri, payload, reqHeaders);
+
+    final resp = await _http.put(uri, headers: reqHeaders, body: payload);
+    return _toJsonOrThrow(resp);
   }
 
-  // =====================================================
-  // 🔹 DELETE JSON
-  // =====================================================
-
-  Future<Map<String, dynamic>> deleteJson(String path,
-      {Map<String, dynamic>? body}) async {
+  Future<Map<String, dynamic>> deleteJson(
+    String path, {
+    Map<String, dynamic>? body, // opsional: ada API yang minta body saat delete
+    Map<String, String>? headers,
+    bool includeAuth = true,
+  }) async {
     final uri = _buildUri(path);
-    appLogger.logRequest(method: 'DELETE', uri: uri, body: body, headers: _jsonHeaders);
-    try {
-      final resp = await _client.delete(
-        uri,
-        headers: _jsonHeaders,
-        body: body != null ? jsonEncode(body) : null,
-      );
-      appLogger.logResponse(uri: uri, statusCode: resp.statusCode, body: resp.body);
-      return _toJsonOrThrow(resp);
-    } on SocketException {
-      appLogger.logSocketError(uri);
-      throw const SocketException('No Internet connection');
-    } catch (e) {
-      appLogger.logUnexpected(uri, e);
-      rethrow;
-    }
+    final reqHeaders = await _mergedHeaders(headers,
+        includeAuth: includeAuth, json: body != null);
+    final payload = body == null ? null : jsonEncode(body);
+    _debugPrint('DELETE', uri, payload, reqHeaders);
+
+    final resp = await _http.send(http.Request('DELETE', uri)
+      ..headers.addAll(reqHeaders)
+      ..bodyBytes = payload == null ? <int>[] : utf8.encode(payload));
+    final raw = await http.Response.fromStream(resp);
+    return _toJsonOrThrow(raw);
   }
 
-  // =====================================================
-  // 🧩 RESPONSE HANDLER
-  // =====================================================
+  // ================== HELPERS ==================
+
+  Uri _buildUri(String path, {Map<String, String>? query}) {
+    // Kalau path sudah absolute URL, langsung pakai & merge query
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      final u = Uri.parse(path);
+      return u.replace(queryParameters: {
+        ...?u.queryParameters,
+        ...?query,
+      });
+    }
+
+    // Normalisasi base & path agar tidak double slash
+    final base = AppConstants.baseUrl; // pastikan TANPA slash di ujung (lebih aman)
+    final baseUri = Uri.parse(base);
+
+    // gabungkan baseUri.path (bisa kosong atau '/something') dengan path relatif
+    String _normalizePath(String a, String b) {
+      var aa = a; var bb = b;
+      if (aa.endsWith('/')) aa = aa.substring(0, aa.length - 1);
+      if (bb.startsWith('/')) bb = bb.substring(1);
+      if (aa.isEmpty) return '/$bb';
+      if (bb.isEmpty) return aa; // tidak menambah slash ekstra
+      return '$aa/$bb';
+    }
+
+    final combinedPath = _normalizePath(baseUri.path, path);
+
+    return baseUri.replace(
+      path: combinedPath,
+      queryParameters: query,
+    );
+  }
+
+  Future<Map<String, String>> _mergedHeaders(
+    Map<String, String>? extra, {
+    required bool includeAuth,
+    bool json = false,
+    bool form = false,
+  }) async {
+    final headers = <String, String>{
+      'Accept': 'application/json',
+    };
+
+    if (json) headers['Content-Type'] = 'application/json';
+    if (form) headers['Content-Type'] = 'application/x-www-form-urlencoded';
+
+    if (includeAuth) {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString(AppConstants.kTokenKey);
+      if (token != null && token.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+    }
+    if (extra != null && extra.isNotEmpty) headers.addAll(extra);
+    return headers;
+  }
 
   Map<String, dynamic> _toJsonOrThrow(http.Response resp) {
-    if (resp.statusCode >= 200 && resp.statusCode < 300) {
-      if (resp.body.isEmpty) return <String, dynamic>{};
-      final decoded = jsonDecode(resp.body);
-      if (decoded is Map<String, dynamic>) return decoded;
-      return {'data': decoded};
+    final status = resp.statusCode;
+    final body = resp.body.trim();
+
+    if (status >= 200 && status < 300) {
+      if (body.isEmpty) return <String, dynamic>{};
+      try {
+        final decoded = jsonDecode(body);
+        if (decoded is Map<String, dynamic>) return decoded;
+        if (decoded is List) return {'data': decoded};
+        return {'data': decoded};
+      } on FormatException {
+        return {'data': body};
+      }
     }
 
-    // try {
-    //   final decoded = jsonDecode(resp.body);
-    //   final msg = (decoded['detail'] ?? decoded['message'] ?? 'Request failed').toString();
-    //   throw ServerException(
-    //     msg, statusCode: resp.statusCode
-    //   );
-    // } catch (e, s) {
-    //   // print('❌ Error decoding response: $e');
-    //   // print('Stacktrace: $s');
-    //   // print('Response body: ${resp.body}');
-    //   throw ServerException(
-    //     'Request failed (${resp.statusCode})',
-    //     statusCode: resp.statusCode,
-    //   );
-    // }
-    
-    try {
-      final decoded = jsonDecode(resp.body);
-      final msg = (decoded['detail'] ?? decoded['message'] ?? 'Request failed').toString();
-      throw ServerException(msg, statusCode: resp.statusCode); // <-- ini boleh
-    } on FormatException {
-      // hanya error decode JSON yang ditangkap
-      throw ServerException('Request failed (${resp.statusCode})', statusCode: resp.statusCode);
+    // Error path
+    String msg = 'Request failed ($status)';
+    if (body.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(body);
+        if (decoded is Map) {
+          msg = (decoded['detail'] ??
+                 decoded['message'] ??
+                 decoded['error'] ??
+                 decoded['errors'] ??
+                 decoded.toString()).toString();
+        } else {
+          msg = decoded.toString();
+        }
+      } catch (_) {
+        msg = body;
+      }
     }
-  } 
+    throw ServerException(msg, statusCode: status);
+  }
+
+  void _debugPrint(String method, Uri uri, Object? body, Map<String, String> headers) {
+    // print log sederhana; kalau mau, ganti ke logger package
+    // ignore: avoid_print
+    print('➡️ $method $uri');
+    if (headers['Authorization'] != null) {
+      // ignore: avoid_print
+      print('   headers: {Authorization: Bearer ***}');
+    }
+    if (body != null) {
+      // ignore: avoid_print
+      print('   payload: $body');
+    }
+  }
 }
