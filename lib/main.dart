@@ -3,20 +3,26 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+// Core
 import 'core/network/api_client.dart';
 import 'core/constants/app_constants.dart';
 
-// Auth layers
+// ===== AUTH LAYERS =====
 import 'data/datasources/auth_remote_data_source.dart';
 import 'data/repositories/auth_repository_impl.dart';
 import 'domain/usecases/login_user.dart';
 import 'domain/usecases/logout_user.dart';
 import 'presentation/features/auth/bloc/auth_bloc.dart';
 
-// Product layers
+// ===== PRODUCT LAYERS =====
 import 'data/datasources/product_remote_data_source.dart';
 import 'data/repositories/product_repository_impl.dart';
 import 'domain/repositories/product_repository.dart';
+
+// ===== USER LAYERS =====
+import 'data/datasources/user_remote_data_source.dart';
+import 'data/repositories/user_repository_impl.dart';
+import 'domain/usecases/user_usecases.dart';
 
 // Router
 import 'presentation/routes/app_router.dart';
@@ -24,27 +30,33 @@ import 'presentation/routes/app_router.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // --- Wiring dependencies
+  // HTTP & API client (dipakai semua stack)
   final httpClient = http.Client();
   final apiClient = ApiClient(httpClient);
 
-  // Auth
+  // ========== AUTH ==========
   final authDS   = AuthRemoteDataSourceImpl(apiClient);
   final authRepo = AuthRepositoryImpl(authDS);
   final loginUC  = LoginUser(authRepo);
   final logoutUC = LogoutUser(authRepo);
 
-  // Product
+  // ========== PRODUCT ==========
   final productDS   = ProductRemoteDataSourceImpl(apiClient);
   final ProductRepository productRepo = ProductRepositoryImpl(productDS);
 
-  // Tentukan initial route dari token/role
+  // ========== USER ==========
+  final userDS   = UserRemoteDataSourceImpl(apiClient);
+  final userRepo = UserRepositoryImpl(userDS);
+  final getUsers = GetUsers(userRepo);
+
+  // Tentukan halaman awal dari token & role
   final initialRoute = await _resolveInitialRoute();
 
   runApp(MyApp(
     loginUser: loginUC,
     logoutUser: logoutUC,
     productRepo: productRepo,
+    getUsers: getUsers,
     initialRoute: initialRoute,
   ));
 }
@@ -65,6 +77,7 @@ class MyApp extends StatelessWidget {
   final LoginUser loginUser;
   final LogoutUser logoutUser;
   final ProductRepository productRepo;
+  final GetUsers getUsers;
   final String initialRoute;
 
   const MyApp({
@@ -72,20 +85,26 @@ class MyApp extends StatelessWidget {
     required this.loginUser,
     required this.logoutUser,
     required this.productRepo,
+    required this.getUsers,
     required this.initialRoute,
   });
 
   @override
   Widget build(BuildContext context) {
-    final router = AppRouter(productRepo: productRepo);
+    // Router butuh productRepo & getUsers
+    final router = AppRouter(
+      productRepo: productRepo,
+      getUsers: getUsers,
+    );
 
     return MultiBlocProvider(
       providers: [
-        // AuthBloc di level app (untuk login/logout dari mana saja)
+        // AuthBloc dipasang global (biar login/logout bisa dipanggil dari mana saja)
         BlocProvider(
           create: (_) => AuthBloc(loginUser, logoutUser),
         ),
-        // NOTE: ProductBloc diprovider di AppRouter pada route /admin/products,
+        // NOTE:
+        // ProductBloc & UserBloc disediakan per-route di AppRouter,
         // jadi tidak perlu dipasang global di sini.
       ],
       child: MaterialApp(

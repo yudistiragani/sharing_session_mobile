@@ -83,8 +83,8 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
   }
 
   Future<void> _onSort(ProductSortChanged e, Emitter<ProductState> emit) async {
-    emit(state.copyWith(sortBy: e.sortBy, page: 1));
-    await _load(emit);
+    emit(state.copyWith(sortBy: e.sortBy, page: 1, loading: true));
+  await _load(emit);
   }
 
   Future<void> _onOrder(ProductOrderChanged e, Emitter<ProductState> emit) async {

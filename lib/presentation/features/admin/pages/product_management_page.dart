@@ -19,7 +19,8 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
   @override
   void initState() {
     super.initState();
-    context.read<ProductBloc>().add(ProductStarted());
+    // kalau AppRouter sudah memanggil ProductStarted(), baris ini bisa dihapus.
+    // context.read<ProductBloc>().add(ProductStarted());
     _scroll.addListener(() {
       if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 220) {
         context.read<ProductBloc>().add(ProductFetchMore());
@@ -44,11 +45,9 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
         titleSpacing: 0,
         title: _SearchInAppBar(
           controller: _search,
-          onSubmit: (v) => context
-              .read<ProductBloc>()
-              .add(ProductSearchChanged(v.trim())),
+          onSubmit: (v) =>
+              context.read<ProductBloc>().add(ProductSearchChanged(v.trim())),
         ),
-        centerTitle: false,
         actions: [
           IconButton(icon: const Icon(Icons.more_vert), onPressed: () {}),
         ],
@@ -64,7 +63,7 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
         builder: (context, state) {
           return Column(
             children: [
-              // Filter & sort (horizontal scroll)
+              // Filter & sort (horizontal scroll supaya aman di layar kecil)
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
                 child: SingleChildScrollView(
@@ -79,6 +78,8 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                               value: 'name', child: Text('Nama Produk')),
                           DropdownMenuItem(value: 'price', child: Text('Harga')),
                           DropdownMenuItem(value: 'stock', child: Text('Stok')),
+                          DropdownMenuItem(
+                              value: 'created_at', child: Text('Tanggal Buat')),
                         ],
                         onChanged: (v) => context
                             .read<ProductBloc>()
@@ -101,7 +102,7 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                 ),
               ),
 
-              // List
+              // Daftar produk
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: () async =>
@@ -122,24 +123,26 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                       }
                       final p = state.items[i];
 
+                      // URL gambar aman dari double slash
                       final firstImagePath =
                           p.images.isNotEmpty ? p.images.first : null;
                       final imageUrl = firstImagePath == null
                           ? null
                           : UrlUtils.join(AppConstants.baseUrl, firstImagePath);
 
-                      final uiStatus = p.uiStatus; // available | low | inactive
-                      final statusClr = Color(statusColorFromUi(uiStatus));
-                      final statusLabel = statusLabelFromUi(uiStatus);
+                      // status UI (available | low | inactive) → label & warna
+                      final uiStatus = p.uiStatus; // asumsi ada getter di model
+                      final statusClr = _statusColorFromUi(uiStatus);
+                      final statusLabel = _statusLabelFromUi(uiStatus);
 
-                      return _ProductCardNew(
+                      return _ProductCard(
                         name: p.name,
                         price: formatRupiah(p.price),
+                        category: null, // isi jika kamu punya nama kategori
                         stock: p.stock,
                         statusLabel: statusLabel,
                         statusColor: statusClr,
                         imageUrl: imageUrl,
-                        category: null, // tampilkan jika punya nama kategori
                         onEdit: () {
                           // TODO: navigate ke edit produk
                         },
@@ -155,7 +158,6 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
           );
         },
       ),
-      // FAB tambah produk seperti di mockup
       floatingActionButton: FloatingActionButton(
         backgroundColor: orange,
         onPressed: () {
@@ -189,6 +191,8 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                   style:
                       TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
               const SizedBox(height: 12),
+
+              // Kategori
               const Text('Kategori',
                   style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
@@ -210,6 +214,8 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                 ],
               ),
               const SizedBox(height: 16),
+
+              // Status (active/inactive sesuai API-mu)
               const Text('Status',
                   style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
@@ -236,6 +242,7 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                 ],
               ),
               const SizedBox(height: 16),
+
               Row(
                 children: [
                   Expanded(
@@ -475,15 +482,14 @@ class _OrderPill extends StatelessWidget {
   }
 }
 
-/// Kartu dengan 3 tombol di atas (sejajar) lalu row gambar + detail
-class _ProductCardNew extends StatelessWidget {
+class _ProductCard extends StatelessWidget {
   final String name, price, statusLabel;
   final int stock;
   final Color statusColor;
   final String? category, imageUrl;
   final VoidCallback onEdit, onChangeStatus, onDelete;
 
-  const _ProductCardNew({
+  const _ProductCard({
     required this.name,
     required this.price,
     required this.statusLabel,
@@ -509,7 +515,7 @@ class _ProductCardNew extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ======= ROW GAMBAR + DETAIL =======
+          // ROW: Gambar + Detail
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -526,6 +532,7 @@ class _ProductCardNew extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // judul
                     Text(
                       name,
                       maxLines: 1,
@@ -533,9 +540,13 @@ class _ProductCardNew extends StatelessWidget {
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 2),
-                    Text(price,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w800, fontSize: 14)),
+                    // harga
+                    Text(
+                      price,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w800, fontSize: 14),
+                    ),
+                    // kategori (opsional)
                     if (category != null && category!.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Container(
@@ -553,6 +564,7 @@ class _ProductCardNew extends StatelessWidget {
                       ),
                     ],
                     const SizedBox(height: 4),
+                    // stok + status
                     Row(
                       children: [
                         Text('Stok: $stock',
@@ -561,11 +573,13 @@ class _ProductCardNew extends StatelessWidget {
                         const SizedBox(width: 8),
                         Icon(Icons.circle, size: 9, color: statusColor),
                         const SizedBox(width: 4),
-                        Text(statusLabel,
-                            style: TextStyle(
-                                color: statusColor,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500)),
+                        Text(
+                          statusLabel,
+                          style: TextStyle(
+                              color: statusColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500),
+                        ),
                       ],
                     ),
                   ],
@@ -580,7 +594,7 @@ class _ProductCardNew extends StatelessWidget {
 
           const SizedBox(height: 10),
 
-          // ======= ROW 3 TOMBOL DI BAWAH =======
+          // ROW: 3 tombol kecil di bawah (selalu muat 1 baris)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -608,7 +622,6 @@ class _ProductCardNew extends StatelessWidget {
   }
 }
 
-/// Tombol kecil custom
 class _SmallButton extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -662,5 +675,29 @@ class _SmallButton extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// ===== Helper status UI lokal (kalau kamu belum punya di utils) =====
+
+Color _statusColorFromUi(String uiStatus) {
+  switch (uiStatus) {
+    case 'available':
+      return const Color(0xFF2E7D32); // hijau
+    case 'low':
+      return const Color(0xFFF9A825); // kuning
+    default:
+      return const Color(0xFFD32F2F); // merah / inactive
+  }
+}
+
+String _statusLabelFromUi(String uiStatus) {
+  switch (uiStatus) {
+    case 'available':
+      return 'Tersedia';
+    case 'low':
+      return 'Stok Menipis';
+    default:
+      return 'Nonaktif';
   }
 }
