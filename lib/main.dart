@@ -27,16 +27,23 @@ import 'domain/usecases/user_usecases.dart';
 // Router
 import 'presentation/routes/app_router.dart';
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // HTTP & API client (dipakai semua stack)
   final httpClient = http.Client();
-  final apiClient = ApiClient(httpClient);
+  final apiClient = ApiClient(http.Client(), onUnauthorized: () {
+    navigatorKey.currentState?.pushNamedAndRemoveUntil(
+      AppRouter.login,
+      (route) => false,
+    );
+  });
 
   // ========== AUTH ==========
   final authDS   = AuthRemoteDataSourceImpl(apiClient);
-  final authRepo = AuthRepositoryImpl(authDS);
+  final authRepo = AuthRepositoryImpl(authDS, apiClient);
   final loginUC  = LoginUser(authRepo);
   final logoutUC = LogoutUser(authRepo);
 
@@ -108,6 +115,7 @@ class MyApp extends StatelessWidget {
         // jadi tidak perlu dipasang global di sini.
       ],
       child: MaterialApp(
+        navigatorKey: navigatorKey,
         debugShowCheckedModeBanner: false,
         title: 'Admin Panel',
         theme: ThemeData(

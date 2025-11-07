@@ -7,7 +7,8 @@ import '../errors/exceptions.dart';
 
 class ApiClient {
   final http.Client _http;
-  ApiClient(this._http);
+  final void Function()? onUnauthorized;
+  ApiClient(this._http, {this.onUnauthorized});
 
   // ================== PUBLIC ==================
 
@@ -22,6 +23,16 @@ class ApiClient {
     _debugPrint('GET', uri, null, reqHeaders);
 
     final resp = await _http.get(uri, headers: reqHeaders);
+    // === TOKEN INVALID HANDLER ===
+    if (resp.statusCode == 401 || resp.statusCode == 403) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+
+      if (onUnauthorized != null) {
+        onUnauthorized!();              // <-- trigger UI event
+      }
+    }
+
     return _toJsonOrThrow(resp);
   }
 
@@ -38,6 +49,17 @@ class ApiClient {
     _debugPrint('POST', uri, payload, reqHeaders);
 
     final resp = await _http.post(uri, headers: reqHeaders, body: payload);
+
+    // === TOKEN INVALID HANDLER ===
+    if (resp.statusCode == 401 || resp.statusCode == 403) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+
+      if (onUnauthorized != null) {
+        onUnauthorized!();              // <-- trigger UI event
+      }
+    }
+
     return _toJsonOrThrow(resp);
   }
 
@@ -54,6 +76,17 @@ class ApiClient {
     _debugPrint('POST', uri, form, reqHeaders);
 
     final resp = await _http.post(uri, headers: reqHeaders, body: form);
+
+    // === TOKEN INVALID HANDLER ===
+    if (resp.statusCode == 401 || resp.statusCode == 403) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+
+      if (onUnauthorized != null) {
+        onUnauthorized!();              // <-- trigger UI event
+      }
+    }
+
     return _toJsonOrThrow(resp);
   }
 
@@ -70,6 +103,17 @@ class ApiClient {
     _debugPrint('PUT', uri, payload, reqHeaders);
 
     final resp = await _http.put(uri, headers: reqHeaders, body: payload);
+
+    // === TOKEN INVALID HANDLER ===
+    if (resp.statusCode == 401 || resp.statusCode == 403) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+
+      if (onUnauthorized != null) {
+        onUnauthorized!();              // <-- trigger UI event
+      }
+    }
+
     return _toJsonOrThrow(resp);
   }
 
@@ -99,7 +143,7 @@ class ApiClient {
     if (path.startsWith('http://') || path.startsWith('https://')) {
       final u = Uri.parse(path);
       return u.replace(queryParameters: {
-        ...?u.queryParameters,
+        ...u.queryParameters,
         ...?query,
       });
     }
@@ -109,7 +153,7 @@ class ApiClient {
     final baseUri = Uri.parse(base);
 
     // gabungkan baseUri.path (bisa kosong atau '/something') dengan path relatif
-    String _normalizePath(String a, String b) {
+    String normalizePath(String a, String b) {
       var aa = a; var bb = b;
       if (aa.endsWith('/')) aa = aa.substring(0, aa.length - 1);
       if (bb.startsWith('/')) bb = bb.substring(1);
@@ -118,7 +162,7 @@ class ApiClient {
       return '$aa/$bb';
     }
 
-    final combinedPath = _normalizePath(baseUri.path, path);
+    final combinedPath = normalizePath(baseUri.path, path);
 
     return baseUri.replace(
       path: combinedPath,

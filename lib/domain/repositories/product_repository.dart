@@ -12,6 +12,8 @@ abstract class ProductRepository {
     String? order,
   });
 
+  Future<ProductModel> getProductById(String id);
+
   Future<List<CategoryOptionModel>> getCategories();
   Future<void> updateStatus({required String id, required String status});
   Future<void> deleteProduct({required String id});

@@ -60,4 +60,9 @@ class ProductRepositoryImpl implements ProductRepository {
       throw ServerFailure(e.message);
     }
   }
+
+  @override
+  Future<ProductModel> getProductById(String id) {
+    return remote.getProductById(id);
+  }
 }
