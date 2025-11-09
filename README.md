@@ -1,16 +1,55 @@
-# project_management_system
+# 🛍️ Flutter Admin Panel - Add User & Product
 
-A new Flutter project.
+Project ini merupakan bagian dari sistem admin panel berbasis **Flutter + REST API**, dengan fitur utama:
+- Menambah User (dengan upload foto profil)
+- Menambah Produk (dengan upload multiple images ke endpoint terpisah)
+- Integrasi API backend (FastAPI + MongoDB)
 
-## Getting Started
+---
 
-This project is a starting point for a Flutter application.
+## 📁 Struktur Folder Utama
 
-A few resources to get you started if this is your first Flutter project:
+lib/
+├── core/
+│ ├── constants/
+│ ├── network/
+│ └── utils/
+├── data/
+│ ├── datasources/
+│ ├── models/
+│ └── repositories/
+├── domain/
+│ ├── entities/
+│ ├── repositories/
+│ └── usecases/
+├── presentation/
+│ ├── features/
+│ │ ├── admin/
+│ │ │ ├── pages/
+│ │ │ │ ├── admin_add_user_page.dart
+│ │ │ │ ├── admin_add_product_page.dart
+│ │ │ │ └── user_management_page.dart
+│ ├── widgets/
+│ └── app.dart
+└── main.dart
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## 🔑 Catatan Penting
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- Semua field produk **required**, termasuk foto.
+- Field `low_stock_threshold` wajib diisi (stok menipis).
+- Endpoint `categories/select` harus aktif dan mengembalikan data kategori aktif.
+- Token `Bearer` harus disertakan pada semua request yang membutuhkan autentikasi.
+
+## 🧩 Dependencies yang digunakan
+
+- `flutter_bloc`
+- `dio`
+- `image_picker`
+- `fluttertoast`
+- `cached_network_image`
+
+## 🚀 Jalankan Project
+
+```bash
+flutter pub get
+flutter run
