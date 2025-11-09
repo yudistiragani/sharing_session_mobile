@@ -1,5 +1,5 @@
 class AppConstants {
-  static const String baseUrl = 'http://192.168.1.12:8001/'; // ganti sesuai API
+  static const String baseUrl = 'http://0.0.0.0:8001/'; // ganti sesuai API
 
   // Auth
   static const String loginPath = '/api/v1/auth/login';
