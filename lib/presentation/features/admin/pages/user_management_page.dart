@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../core/constants/app_constants.dart';
 import '../../../../../core/utils/url_utils.dart';
+import 'admin_add_user_page.dart';
 import '../bloc/user_bloc.dart';
 
 class UserManagementPage extends StatefulWidget {
@@ -67,7 +68,19 @@ class _UserManagementPageState extends State<UserManagementPage> {
 
       floatingActionButton: FloatingActionButton(
         backgroundColor: orange,
-        onPressed: () {},
+        onPressed: () async {
+          final result = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(builder: (_) => const AdminAddUserPage()),
+          );
+
+          if (result == true) {
+            // halaman Add User mengembalikan true saat sukses.
+            // Trigger reload list user: karena user_management_page.dart dibungkus UserBloc
+            // kita dispatch event reload (sesuaikan nama event/Bloc-mu).
+            context.read<UserBloc>().add(UserStarted()); // atau event reload yang kamu punya
+          }
+        },
         child: const Icon(Icons.add, color: Colors.white),
       ),
 

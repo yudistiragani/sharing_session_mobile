@@ -6,6 +6,8 @@ import '../../../../../core/utils/formatters.dart';
 import '../../../../../core/utils/url_utils.dart';
 import '../bloc/product_bloc.dart';
 
+import 'admin_add_product_page.dart';
+
 class ProductManagementPage extends StatefulWidget {
   const ProductManagementPage({super.key});
   @override
@@ -160,8 +162,18 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: orange,
-        onPressed: () {
-          // TODO: navigate ke tambah produk
+        onPressed: () async {
+          final result = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(builder: (_) => const AdminAddProductPage()),
+          );
+
+          if (result == true) {
+            // halaman Add User mengembalikan true saat sukses.
+            // Trigger reload list user: karena user_management_page.dart dibungkus UserBloc
+            // kita dispatch event reload (sesuaikan nama event/Bloc-mu).
+            context.read<ProductBloc>().add(ProductStarted()); // atau event reload yang kamu punya
+          }
         },
         child: const Icon(Icons.add, color: Colors.white),
       ),

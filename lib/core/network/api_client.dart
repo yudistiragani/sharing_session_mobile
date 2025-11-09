@@ -231,6 +231,85 @@ class ApiClient {
     throw ServerException(msg, statusCode: status);
   }
 
+  Future<Map<String, dynamic>> postMultipart(
+    String path, {
+    required Map<String, String> fields,
+    required Map<String, File> files,
+    Map<String, String>? headers,
+    bool includeAuth = true,
+  }) async {
+    final uri = _buildUri(path);
+    final reqHeaders = await _mergedHeaders(headers, includeAuth: includeAuth);
+    final request = http.MultipartRequest('POST', uri)
+      ..headers.addAll(reqHeaders)
+      ..fields.addAll(fields);
+
+    // tambahkan semua file
+    for (final entry in files.entries) {
+      final file = await http.MultipartFile.fromPath(
+        entry.key,
+        entry.value.path,
+        filename: entry.value.path.split('/').last,
+      );
+      request.files.add(file);
+    }
+
+    // kirim request
+    final streamedResponse = await request.send();
+    final resp = await http.Response.fromStream(streamedResponse);
+
+    // === TOKEN INVALID HANDLER ===
+    if (resp.statusCode == 401 || resp.statusCode == 403) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+
+      if (onUnauthorized != null) {
+        onUnauthorized!(); // trigger UI event
+      }
+    }
+
+    return _toJsonOrThrow(resp);
+  }
+
+  Future<Map<String, dynamic>> postMultipartFiles(
+    String path, {
+    required Map<String, String> fields,
+    required List<File> files,
+    required String fileField, // contoh: 'files'
+    Map<String, String>? headers,
+    bool includeAuth = true,
+  }) async {
+    final uri = _buildUri(path);
+    final reqHeaders = await _mergedHeaders(headers, includeAuth: includeAuth);
+    final request = http.MultipartRequest('POST', uri)
+      ..headers.addAll(reqHeaders)
+      ..fields.addAll(fields);
+
+    for (final file in files) {
+      final multipartFile = await http.MultipartFile.fromPath(
+        fileField,
+        file.path,
+        filename: file.path.split('/').last,
+      );
+      request.files.add(multipartFile);
+    }
+
+    final streamedResponse = await request.send();
+    final resp = await http.Response.fromStream(streamedResponse);
+
+    // === TOKEN INVALID HANDLER ===
+    if (resp.statusCode == 401 || resp.statusCode == 403) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+
+      if (onUnauthorized != null) {
+        onUnauthorized!(); // trigger UI event
+      }
+    }
+
+    return _toJsonOrThrow(resp);
+  }
+
   void _debugPrint(String method, Uri uri, Object? body, Map<String, String> headers) {
     // print log sederhana; kalau mau, ganti ke logger package
     // ignore: avoid_print

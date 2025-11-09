@@ -26,7 +26,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
       // +++ ADD (ambil profil setelah login)
       try {
-        final map = await apiClient.getJson(AppConstants.mePath) as Map<String, dynamic>;
+        final map = await apiClient.getJson(AppConstants.mePath);
         final u = map['user'] as Map? ?? {};
         final fullName = (u['full_name'] ?? '').toString();
         final profile = (u['profile_image'] ?? '').toString();
